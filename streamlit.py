@@ -24,6 +24,14 @@ def load_stores():
     return pl.read_csv("data/stores.csv")
 
 @st.cache_data
+def load_payment_products():
+    return pl.read_csv(
+        "data/payment_products.csv",
+        null_values=["null", "NULL", ""],
+        schema_overrides={"TOTAL_UNITS": pl.Float64}
+    )
+
+@st.cache_data
 def load_master_ctin():
     return pl.read_csv("data/master_ctin.csv")
 
@@ -232,21 +240,51 @@ elif page == "📦 Top 5 Products":
 
     with tab2:
         st.subheader("Top 5 Products Summary")
-        with st.expander("View Full Summary Table", expanded=True):
-            weekly_summary = (
-                filtered
-                .filter(pl.col("POS_DESCRIPTION").is_in(top5["POS_DESCRIPTION"].to_list()))
-                .group_by(["POS_DESCRIPTION", "MONTH"])
-                .agg([
-                    pl.col("TOTAL_SALES").sum().alias("Total Sales ($)"),
-                    pl.col("TOTAL_UNITS").sum().alias("Total Units Sold")
-                ])
-                .sort(["POS_DESCRIPTION", "MONTH"])
-            )
-            st.dataframe(
-                weekly_summary.to_pandas(),
-                use_container_width=True
-            )
+    from great_tables import GT, style, loc
+    import pandas as pd
+
+    gt_data = (
+        filtered
+        .filter(pl.col("POS_DESCRIPTION").is_in(top5["POS_DESCRIPTION"].to_list()))
+        .group_by("POS_DESCRIPTION")
+        .agg([
+            pl.col("TOTAL_SALES").sum().alias("Total Sales ($)"),
+            pl.col("TOTAL_UNITS").sum().alias("Total Units Sold"),
+            pl.col("WEEK").n_unique().alias("Weeks Active")
+        ])
+        .sort("Total Sales ($)", descending=True)
+        .to_pandas()
+    )
+
+    gt_data["Avg Weekly Sales ($)"] = (
+        gt_data["Total Sales ($)"] / gt_data["Weeks Active"]
+    ).round(2)
+
+    gt_data["Total Sales ($)"] = gt_data["Total Sales ($)"].round(2)
+
+    gt = (
+        GT(gt_data)
+        .tab_header(
+            title="Top 5 Products Performance Summary",
+            subtitle="Filtered by selected stores and months"
+        )
+        .cols_label(
+            POS_DESCRIPTION="Product",
+        )
+        .fmt_currency(columns=["Total Sales ($)", "Avg Weekly Sales ($)"])
+        .fmt_integer(columns=["Total Units Sold", "Weeks Active"])
+        .tab_style(
+            style=style.fill(color="#e8f4f8"),
+            locations=loc.body(rows=[0])
+        )
+        .tab_style(
+            style=style.text(weight="bold"),
+            locations=loc.column_labels()
+        )
+        .tab_source_note("Source: Cstore Transaction Data")
+    )
+
+    st.html(gt.as_raw_html())
 
 elif page == "🥤 Packaged Beverages":
     st.title("🥤 Packaged Beverage Brand Analysis")
@@ -642,11 +680,109 @@ elif page == "💳 Cash vs Credit":
     with tab2:
         st.subheader("Payment Type Summary")
 
-        with st.expander("Total Sales & Transactions", expanded=True):
-            st.dataframe(pay_summary.to_pandas(), use_container_width=True)
+    with st.expander("Total Sales & Transactions", expanded=True):
+        st.dataframe(pay_summary.to_pandas(), use_container_width=True)
 
-        with st.expander("Basket Size Comparison", expanded=True):
-            st.dataframe(basket_summary.to_pandas(), use_container_width=True)
+    with st.expander("Basket Size Comparison", expanded=True):
+        st.dataframe(basket_summary.to_pandas(), use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("🛒 Top Products by Payment Type")
+
+    pay_prods = load_payment_products()
+
+    pay_prods = pay_prods.with_columns(
+        pl.when(pl.col("PAYMENT_TYPE") == "CASH")
+            .then(pl.lit("Cash"))
+        .when(pl.col("PAYMENT_TYPE").is_in(["CREDIT", "DEBIT", "CARD", "FLEET", "GIFT CARD"]))
+            .then(pl.lit("Credit/Card"))
+        .otherwise(pl.lit("Other"))
+        .alias("PAYMENT_GROUP")
+    ).filter(pl.col("PAYMENT_GROUP").is_in(payment_groups))
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        st.subheader("Most Purchased Products - Cash")
+        cash_prods = (
+            pay_prods
+            .filter(pl.col("PAYMENT_GROUP") == "Cash")
+            .group_by("POS_DESCRIPTION")
+            .agg([
+                pl.col("PURCHASE_COUNT").sum().alias("PURCHASE_COUNT"),
+                pl.col("TOTAL_SALES").sum().alias("TOTAL_SALES")
+            ])
+            .sort("PURCHASE_COUNT", descending=True)
+            .head(10)
+        )
+        fig3 = px.bar(
+            cash_prods.to_pandas(),
+            x="PURCHASE_COUNT",
+            y="POS_DESCRIPTION",
+            orientation="h",
+            title="Top 10 Products - Cash Customers",
+            labels={"PURCHASE_COUNT": "Purchase Count", "POS_DESCRIPTION": "Product"},
+            color="PURCHASE_COUNT",
+            color_continuous_scale="Blues"
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+
+    with col_b:
+        st.subheader("Most Purchased Products - Credit/Card")
+        card_prods = (
+            pay_prods
+            .filter(pl.col("PAYMENT_GROUP") == "Credit/Card")
+            .group_by("POS_DESCRIPTION")
+            .agg([
+                pl.col("PURCHASE_COUNT").sum().alias("PURCHASE_COUNT"),
+                pl.col("TOTAL_SALES").sum().alias("TOTAL_SALES")
+            ])
+            .sort("PURCHASE_COUNT", descending=True)
+            .head(10)
+        )
+        fig4 = px.bar(
+            card_prods.to_pandas(),
+            x="PURCHASE_COUNT",
+            y="POS_DESCRIPTION",
+            orientation="h",
+            title="Top 10 Products - Credit/Card Customers",
+            labels={"PURCHASE_COUNT": "Purchase Count", "POS_DESCRIPTION": "Product"},
+            color="PURCHASE_COUNT",
+            color_continuous_scale="Oranges"
+        )
+        st.plotly_chart(fig4, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("📊 Product Comparison Summary")
+    from great_tables import GT, style, loc
+    import pandas as pd
+
+    top_cash = cash_prods.head(5).to_pandas()
+    top_cash["Payment Type"] = "Cash"
+    top_card = card_prods.head(5).to_pandas()
+    top_card["Payment Type"] = "Credit/Card"
+    combined = pd.concat([top_cash, top_card])
+
+    gt = (
+        GT(combined)
+        .tab_header(
+            title="Top 5 Products by Payment Type",
+            subtitle="Ranked by purchase count"
+        )
+        .cols_label(
+            POS_DESCRIPTION="Product",
+            PURCHASE_COUNT="Purchase Count",
+            TOTAL_SALES="Total Sales ($)"
+        )
+        .fmt_currency(columns=["TOTAL_SALES"])
+        .fmt_integer(columns=["PURCHASE_COUNT"])
+        .tab_style(
+            style=style.text(weight="bold"),
+            locations=loc.column_labels()
+        )
+        .tab_source_note("Source: Cstore Transaction Data")
+    )
+    st.html(gt.as_raw_html())
 
 elif page == "🏘️ Demographics":
     st.title("🏘️ Customer Area Demographics")
