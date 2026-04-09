@@ -1,123 +1,111 @@
-# Introduction to Google Cloud Platform (GCP) and Publishing your App
+# Cstore Analytics Dashboard
 
-Introduction and Directions to get Connected to GCP as a student.  Then an example of how to publish your app.
+A Streamlit dashboard for analyzing convenience store data across five Idaho locations.
 
-This material uses [Polars](https://pola-rs.github.io/polars-book/user-guide/) and focuses [Streamlit](https://streamlit.io/) and dash boarding to introduce the data science app development process.
+## Links
+- **GitHub Repository:** https://github.com/greatkae/google_cloud_platform
+- **Live App (Cloud Run):** https://cstore-dashboard-37259924741.us-west1.run.app
 
-## GCP Setup
-
-### Sign Up
-
-You must have a Google Account to use education credits. If you don't have a Google Account, you can [create one](https://accounts.google.com/signup).
-
-### Get Credits
-
-I will send a message from as follows (except the link will work).
-
+## Running Locally with Docker
+Clone the repo and run:
+```bash
+docker compose up
 ```
-Dear Students,
+Then open your browser to `http://localhost:8080`
 
-Here is the URL you will need to access in order to request a Google Cloud coupon. You will be asked to provide your school email address and name. An email will be sent to you to confirm these details before a coupon is sent to you.
+## App Pages
+| Page | Question Addressed |
+|------|-------------------|
+| Top 5 Products | What are the top 5 weekly sellers excluding fuel? |
+| Packaged Beverages | Which beverage brands should be dropped? |
+| Cash vs Credit | How do cash and credit customers compare? |
+| Demographics | What do customer demographics look like by store area? |
 
-[Student Coupon Retrieval Link]()
+---
 
-* You will be asked for a name and email address, which needs to match your school domain. A confirmation email will be sent to you with a coupon code.
-* You can request a coupon from the URL and redeem it until: 1/8/2026
-* Coupon valid through: 9/8/2026
-* You can only request ONE code per unique email address.
+## Vocabulary Challenge
 
-Thanks,
+### 1. The Added Value of Databricks
 
-Mr. John Hathaway
-```
+Databricks lets you work with massive datasets that would crash or choke a 
+local machine. It runs on a cluster, so instead of waiting forever for your 
+laptop to process 100 million rows, Databricks handles it in minutes.
 
-After you click on the link, you will get a second email with the code.
+For this project, I used it to query and aggregate raw transaction data before 
+bringing it into the dashboard. Without it, that step would not have been 
+possible locally.
 
-```
-Dear
-Jimmy,
+| Stage | Tool | Purpose |
+|-------|------|---------|
+| Raw Storage | Unity Catalog | Store the full dataset |
+| Processing | PySpark on Databricks | Aggregate and clean |
+| Dashboard | Streamlit + Polars | Visualize and explore |
 
-Here is your Google Cloud Coupon Code:
-0EV1-U46r-DRTF-F1V6
+The real value is that it sits at the start of your pipeline and handles the 
+work that nothing else reasonably can.
 
-Click
-[here]()
- to redeem.
+---
 
-Course/Project Information
-Instructor Name:
-Email Address:
-School:
-Brigham Young University-Idaho
-Course/project:
-Big Data Programming
-Activation Date:
-9/8/2025
-Redeem By:
-1/8/2026
-Coupon Valid Through:  9/8/2026
+### 2. PySpark vs Polars
 
-If you have any questions, please contact your course instructor as listed above.
+They both process tabular data but they are built for completely different 
+situations.
 
-Thanks,
-Google Cloud Education Programs Team
-```
+| Feature | PySpark | Polars |
+|---------|---------|--------|
+| Scale | Billions of rows across a cluster | Millions of rows on one machine |
+| Speed | Fast at scale, slow to start | Very fast locally |
+| Syntax | Verbose | Clean and concise |
+| Setup | Needs a cluster | Just pip install |
+| Best for | Big data pipelines | Local analytics and dashboards |
 
-After clicking the `here` link, you can enter the coupon code to get the credits assigned to your account.
+PySpark is the right tool when your data is too big for one machine. Polars is 
+the right tool when it is not. For this project I used both -- Databricks and 
+PySpark to process the raw data, then Polars in the dashboard to filter and 
+transform it on the fly.
 
-### Setup your GCP app
+---
 
-#### What is Cloud Run
+### 3. Docker Explained
 
- Cloud Run is a managed compute platform that enables stateless containers which are web accessible. Cloud Run is serverless which allows us to more cost effectively handle infrastructure management (in time and money).
+Say you build an app on your laptop and it works perfectly. Then your professor 
+tries to run it and gets a bunch of errors because they have a different version 
+of Python or are missing a library you forgot to mention.
 
-The developer workflow in Cloud Run can be done using VS Code:
+Docker fixes that. It packages your app along with everything it needs to run 
+into one container. Anyone with Docker can run that container and get the exact 
+same result, regardless of their machine or setup.
 
-1. Containerize an app using Docker and run the container with Docker Desktop
-2. Build and test the app locally
-3. Push the image to Google Artifact Registry
-4. Deploy the containerized app to Cloud Run
+For this project it means my professor can run the full dashboard locally with 
+one command without installing anything else. It also made deploying to the 
+cloud straightforward since Cloud Run just runs the same container.
 
-With Cloud Run, you can use two types of workflow: container-based workflow or a source-based workflow.[^1] We will be using the __container-based__ workflow.
+---
 
-#### Deploying from the Web Terminal with a Github Repo
+### 4. GCP vs AWS
 
-1. Push your Docker established repository to Github
-2. After logging into your account go to the [GCP Console](https://console.cloud.google.com/).
-3. Select `Cloud Run` from the hamburger menu on the top left (see [picture](cloudrun.png)).
-4. Now you can `Deploy a Web Service` using `Connect repository (Github)`
-5. Select your options and connect your repo.
-6. Let it build (this can take a few minutes)
+| Category | GCP | AWS |
+|----------|-----|-----|
+| Cost | Competitive, per-second billing | Similar, but pricing is harder to follow |
+| Free Tier | $300 credits for new users | 12 months free on select services |
+| Ease of Use | Clean and straightforward | More powerful but steeper learning curve |
+| Serverless Containers | Cloud Run | App Runner / Elastic Beanstalk |
+| Best for | Data and ML workloads | Broadest service catalog, enterprise use |
 
-You can see this repository's app hosted on Cloud Run [here](https://google-cloud-platform-726715325864.us-west1.run.app/) (assuming I still have some free credits).
+For a project like this GCP is the better choice. Cloud Run made deployment 
+simple and the student credits covered everything. AWS has more services overall 
+but can be overwhelming when you just need to ship something.
 
-## Visual Studio Code Extensions
+---
 
-You can use [Managing Extensions in Visual Studio Code](https://code.visualstudio.com/docs/editor/extension-marketplace) to learn how to install extensions. [Managing Extensions in Visual Studio Code](https://code.visualstudio.com/docs/editor/extension-marketplace) provides more background on extensions if needed. We will use the following extensions;
+### 5. A Poem
 
-- [Python - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ms-python.python) extension heavily. 
-- [Container Tools](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-containers)
-- [Dev Container](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-- [docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)
+Raw data sitting in a warehouse,
+too big to touch with normal tools.
+We sparked it up on Databricks,
+and learned to play by different rules.
 
-## Repository Files
-
-- [Dockerfile](Dockerfile) is the build script for our Docker Image
-- [docker-compose.yml](docker-compose.yml) provides an easy way to start our docker container.  [Docker Compose](https://docs.docker.com/compose/#:~:text=It%20is%20the%20key%20to,single%2C%20comprehensible%20YAML%20configuration%20file.) is _'the key to unlocking a streamlined and efficient development and deployment experience.'_
-- [requirements.txt](requirements.txt) is run from the [Dockerfile](Dockerfile) and installs the needed Python packages.
-- [README.md](README.md) is this file.  The `YAML` at the top is necessary for the Streamlit app to work correctly. Specifically the `app_port: 8501` is needed.  All other information can and should be manipulated.
-- [streamlit.py] is our Streamlit app.
-
-## References
-
-_I build trainings a bit like AI. I steal a bunch of stuff from other websites.  This is the list of websites I used to train myself._
-
-- [Build a Streamlit App](https://docs.streamlit.io/get-started/tutorials/create-an-app)
-- [Google Cloud Get & Redeem Education Credits](https://docs.cloud.google.com/billing/docs/how-to/edu-grants)
-- [Google Cloud Redeem Credits](https://docs.cloud.google.com/billing/docs/how-to/edu-grants#redeem)
-- [Cloud Run](https://cloud.google.com/run?hl=en)
-- [Install the Google Cloud CLI](https://docs.cloud.google.com/sdk/docs/install-sdk)
-- [Deploying Streamlit to GCP](https://medium.com/bitstrapped/step-by-step-guide-deploying-streamlit-apps-on-google-cloud-platform-gcp-96fca6a4f331)
-- [Ship docker to GCP](https://til.simonwillison.net/cloudrun/ship-dockerfile-to-cloud-run)
-- [Mapping custom domains](https://docs.cloud.google.com/run/docs/mapping-custom-domains)
-[Deploying a Streamlit App to Google Cloud Run](https://medium.com/@afouda.josue/deploying-a-streamlit-app-to-google-cloud-run-using-a-container-based-workflow-with-docker-and-fc9cb67a550a)
+Cleaned it up and built a dashboard,
+wrapped the whole thing in a box.
+Pushed it live on Google Cloud,
+and finally took the training wheels off.
